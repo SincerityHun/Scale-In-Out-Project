@@ -104,12 +104,16 @@ timeit.timeit(benchmark_step, number=args.num_warmup_batches)
 # Benchmark
 log('Running benchmark...')
 img_secs = []
+iteration_times = [] # List to store time per iteration
 for x in range(args.num_iters):
     time = timeit.timeit(benchmark_step, number=args.num_batches_per_iter)
+    iteration_times.append(time)
     img_sec = args.batch_size * args.num_batches_per_iter / time
     log('Iter #%d: %.1f img/sec per %s' % (x, img_sec, device))
     img_secs.append(img_sec)
 
+avg_time_per_iter = np.mean(iteration_times)
+log('Average time per iteration: %.3f seconds' % avg_time_per_iter)
 # Results
 img_sec_mean = np.mean(img_secs)
 img_sec_conf = 1.96 * np.std(img_secs)
