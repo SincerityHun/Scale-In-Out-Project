@@ -1,0 +1,105 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: podgroups.scheduling.sigs.k8s.io
+spec:
+  conversion:
+    strategy: None
+  group: scheduling.sigs.k8s.io
+  names:
+    kind: PodGroup
+    plural: podgroups
+    singular: podgroup
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                size:
+                  type: integer
+                  description: "The size of the pod group."
+  
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-pod-affinity
+  labels:
+    pod-group.scheduling.sigs.k8s.io: run1
+spec:
+  # "pod-group.scheduling.sigs.k8s.io 레이블의 "run1"이라는 값을 가진 파드를 찾고 "zone"이라는 레이블 값이 이와 같은 호스트로 스케줄링 해주세요.
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      #1. pod 찾기
+      - labelSelector:
+        matchExpressions:
+        - key: pod-group.scheduling.sigs.k8s.io
+          operator: In
+          values:
+          - run1
+      #2. 구역 찾기
+        topologyKey: zone 
+    
+  # A100 1장 필요한 Pod의 명세
+  containers:
+  - name: node-foo-container
+    resources:
+      limits:
+        cpu: "7.5" # CPU 수
+        ephemeral-storage: 32Gi # 임시 메모리 - Shell
+        memory: 192Gi # RAM
+        nvidia.com/gpu: "1" # GPU 수
+        rdma/hca_shared_divices_a: "1"
+  
+  #domain
+  subdomain: experiment-subdomain
+  dnsConfig:
+    searches:
+      - experiment-subdomain.my-namespace.svc.cluster.local
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: experiment-subdomain
+  namespace: my-namespace
+spec:
+  clusterIP: None
+  selector:
+    pod-group.scheduling.sigs.k8s.io: run1
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: podgroup-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      pod-group.scheduling.sigs.k8s.io: run1
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            pod-group.scheduling.sigs.k8s.io: run1
+  egress:
+    - to:
+      - podSelector:
+          matchLabels:
+            pod-group.scheduling.sigs.k8s.io: run1
+
+---

@@ -1,0 +1,51 @@
+apiVersion: kubeflow.org/v1  
+kind: PyTorchJob  
+metadata:  
+  name: dist-fashion-mnist  
+  namespace: my-ns  
+  annotations:  
+    sidecar.istio.io/inject: "false"  
+spec:  
+  runPolicy:  
+    cleanPodPolicy: None  
+  pytorchReplicaSpecs:  
+    Master:  
+      replicas: 1  
+      restartPolicy: OnFailure  
+      template:  
+        spec:  
+          containers:  
+            - name: pytorch # 학습 container의 이름은 pytorch이어야 한다
+              image: sincerityhun/pytorch-mnist-test  
+              command: ["bash", "-c"]  
+              args:   
+                ["python main.py"]  
+              resources:  
+                limits:  
+                  memory: "32Gi"  
+                  cpu: 4  
+                  nvidia.com/gpu: 1  
+                requests:  
+                  memory: "32Gi"  
+                  cpu: 4  
+                  nvidia.com/gpu: 1  
+    Worker:  
+      replicas: 1
+      restartPolicy: OnFailure  
+      template:  
+        spec:  
+          containers:  
+            - name: pytorch  # 학습 container의 이름은 pytorch이어야 한다
+              image: sincerityhun/pytorch-mnist-test 
+              command: ["bash", "-c"]  
+              args:  
+                ["python main.py"]  
+              resources:  
+                limits:  
+                  memory: "32Gi"  
+                  cpu: 4  
+                  nvidia.com/gpu: 1  
+                requests:  
+                  memory: "32Gi"  
+                  cpu: 4  
+                  nvidia.com/gpu: 1

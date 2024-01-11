@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-pod-affinity
+  labels:
+    pod-group.scheduling.sigs.k8s.io: run1
+spec:
+  # "pod-group.scheduling.sigs.k8s.io 레이블의 "run1"이라는 값을 가진 파드를 찾고 "zone"이라는 레이블 값이 이와 같은 호스트로 스케줄링 해주세요.
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      #1. pod 찾기
+      - labelSelector:
+        matchExpressions:
+        - key: pod-group.scheduling.sigs.k8s.io
+          operator: In
+          values:
+          - run1
+      #2. 구역 찾기
+        topologyKey: zone 
+  # A100 1장 필요한 Pod의 명세
+  containers:
+  - name: node-foo-container
+    resources:
+      limits:
+        cpu: "7.5" # CPU 수
+        ephemeral-storage: 32Gi # 임시 메모리 - Shell
+        memory: 192Gi # RAM
+        nvidia.com/gpu: "1" # GPU 수
+        rdma/hca_shared_divices_a: "1"
