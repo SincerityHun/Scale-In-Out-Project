@@ -2,7 +2,7 @@ import torch
 
 # CUDA 사용 가능 여부 확인
 cuda_available = torch.cuda.is_available()
-print(f"CUDA 사용 가능: {cuda_available}")
+print(f"CUDA 사용 가능: {torch.cuda.is_available()}")
 
 # 설치된 CUDA 버전 확인
 if cuda_available:

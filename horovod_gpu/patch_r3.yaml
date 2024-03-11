@@ -1,0 +1,4 @@
+spec:
+  mpiReplicaSpecs:
+    "Worker":
+      replicas: 3
