@@ -22,7 +22,7 @@ parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 parser.add_argument('--seed', type=int, default=42, metavar='S',
-                    help='random seed (default: 42)')
+                    help='random seed (default: 42)')                                                   
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--fp16-allreduce', action='store_true', default=False,
