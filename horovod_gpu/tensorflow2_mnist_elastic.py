@@ -1,7 +1,16 @@
+# 기본 CNN모델 사용
+import argparse
 import tensorflow as tf
 import horovod.tensorflow as hvd
 
+# Argument parser for command line arguments
+parser = argparse.ArgumentParser(description='TensorFlow MNIST Training')
+parser.add_argument('--global-batch-size', type=int, default=128,
+                    help='Global batch size for training (default: 128)')
+args = parser.parse_args()
+
 # Horovod: initialize Horovod.
+print("INIT HOROVOD and GPU")
 hvd.init()
 
 # Horovod: pin GPU to be used to process local rank (one GPU per process)
@@ -18,16 +27,19 @@ if gpus:
 else:
     print("No GPUs found, running on CPU.")
 
+print("SETTING DATA")
 (mnist_images, mnist_labels), _ = \
     tf.keras.datasets.mnist.load_data(path='mnist-%d.npz' % hvd.rank())
 
 # --------------------------------------------------------
+# Calculate local batch size for each process
+local_batch_size = args.global_batch_size // hvd.size() 
 
 dataset = tf.data.Dataset.from_tensor_slices(
     (tf.cast(mnist_images[..., tf.newaxis] / 255.0, tf.float32),
      tf.cast(mnist_labels, tf.int64))
 )
-dataset = dataset.repeat().shuffle(10000).batch(128)
+dataset = dataset.repeat().shuffle(10000).batch(local_batch_size)
 
 mnist_model = tf.keras.Sequential([
     tf.keras.layers.Conv2D(32, [3, 3], activation='relu'),
