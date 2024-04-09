@@ -6,11 +6,25 @@ from torchvision import datasets, transforms
 import torch.utils.data.distributed
 import horovod.torch as hvd
 import os
+import json # FOR LOGGING
+import time # FOR LOGGINGa
+import multiprocessing # FOR LOGGING
+logs = [] # FOR LOGGING
+def async_log_record(logs, path):
+    # FOR LOGGING
+    def write_logs():
+        with open(path, "a") as f:
+            for record in logs:
+                json.dump(record, f)
+                f.write("\n")
+    p = multiprocessing.Process(target=write_logs)
+    p.start()
+
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                    help='input batch size for training (default: 64)')
+                    help='input batch size for training(batch size per GPU) (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                     help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=10, metavar='N',
@@ -22,8 +36,10 @@ parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 parser.add_argument('--seed', type=int, default=42, metavar='S',
-                    help='random seed (default: 42)')                                                   
+                    help='random seed (default: 42)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+                    help='how many batches to wait before logging training status')
+parser.add_argument('--log_interval_for_monitor', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
 parser.add_argument('--fp16-allreduce', action='store_true', default=False,
                     help='use fp16 compression during allreduce')
@@ -41,13 +57,11 @@ if args.cuda:
     # Horovod: pin GPU to local rank.
     torch.cuda.set_device(hvd.local_rank())
     torch.cuda.manual_seed(args.seed)
-
-    # Output the current GPU details
-    current_gpu = torch.cuda.current_device()
-    gpu_name = torch.cuda.get_device_name(current_gpu)
-    print(f"Process {hvd.rank()} is using GPU {current_gpu}: {gpu_name}")
+    print(f"Process {hvd.rank()} is using GPU {torch.cuda.current_device()}")
 else:
     print(f"Process {hvd.rank()} is using CPU")
+
+
 
 # Horovod: limit # of CPU threads to be used per worker.
 torch.set_num_threads(1)
@@ -93,6 +107,8 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
+        return F.log_softmax(x)
+
 
 model = Net()
 
@@ -119,9 +135,10 @@ def metric_average(val, name):
     avg_tensor = hvd.allreduce(tensor, name=name)
     return avg_tensor.item()
 
-
+# FOR DEBUG
 def check_rank(epoch):
-    if epoch == 2 and int(os.environ.get('HOROVOD_RANK')) == 0:
+    horovod_rank = int(os.environ.get('HOROVOD_RANK', 0))
+    if epoch == 2 and horovod_rank== 0:
         print('exit rank {}'.format(hvd.rank()))
         raise RuntimeError('check_rank and exit')
         # exit(1)
@@ -129,6 +146,8 @@ def check_rank(epoch):
 
 @hvd.elastic.run
 def train(state):
+    global logs
+    start_time = time.time() # FOR LOGGING
     # post synchronization event (worker added, worker removed) init ...
     for state.epoch in range(state.epoch, args.epochs + 1):
         state.model.train()
@@ -140,7 +159,7 @@ def train(state):
             if state.batch >= steps_remaining:
                 break
 
-            check_rank(state.epoch)
+            # check_rank(state.epoch)
             if args.cuda:
                 data, target = data.cuda(), target.cuda()
             state.optimizer.zero_grad()
@@ -154,6 +173,20 @@ def train(state):
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     state.epoch, state.batch * len(data), len(train_sampler),
                     100.0 * state.batch / len(train_loader), loss.item()))
+             # FOR LOGGING
+            if state.batch % args.log_interval_for_monitor == 0 and state.batch != 0:
+                end_time = time.time()
+                iteration_time = end_time - start_time
+                start_time = time.time()
+                logs.append({
+                    "epoch": state.epoch,
+                    "iteration_num": state.batch,
+                    "batch_size_per_gpu": args.batch_size,
+                    "iteration_time": iteration_time
+                })
+                async_log_record(logs, "sincerityhun_pytorch_mnist_elastic_logs.json")
+                logs = [] 
+
             state.commit()
         state.batch = 0
 
@@ -186,7 +219,6 @@ def test():
         print('\nTest set: Average loss: {:.4f}, Accuracy: {:.2f}%\n'.format(
             test_loss, 100. * test_accuracy))
 
-
 # Horovod: wrap optimizer with DistributedOptimizer.
 optimizer = hvd.DistributedOptimizer(optimizer,
                                      named_parameters=model.named_parameters(),
@@ -204,3 +236,4 @@ state = hvd.elastic.TorchState(model, optimizer, epoch=1, batch=0)
 state.register_reset_callbacks([on_state_reset])
 train(state)
 test()
+

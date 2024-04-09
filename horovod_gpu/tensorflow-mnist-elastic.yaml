@@ -2,6 +2,7 @@ apiVersion: kubeflow.org/v1
 kind: MPIJob
 metadata:
   name: tensorflow-mnist-elastic
+  namespace: my-ns
 spec:
   slotsPerWorker: 1
   cleanPodPolicy: Running
@@ -29,8 +30,8 @@ spec:
             resources:
               limits:
                 cpu: 1
-                memory: 2Gi
-                nvidia.com/gpu: 2
+                memory: "8Gi"
+                nvidia.com/gpu: 1
     Worker:
       replicas: 2
       template:
@@ -41,5 +42,5 @@ spec:
             resources:
               limits:
                 cpu: 2
-                memory: 4Gi
-                nvidia.com/gpu: 2
+                memory: "16Gi"
+                nvidia.com/gpu: 1
