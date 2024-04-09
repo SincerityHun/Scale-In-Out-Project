@@ -23,4 +23,4 @@ jobs:
           context: ./horovod_gpu
           file: ./horovod_gpu/Dockerfile
           push: true
-          tags: sincerityhun/horovod:0.20.0-tf2.3.0-torch1.6.0-mxnet1.6.0.post0-py3.7-cuda10.1-ver3
+          tags: sincerityhun/horovod:0.20.0-tf2.3.0-torch1.6.0-mxnet1.6.0.post0-py3.7-cuda10.1-ver4
