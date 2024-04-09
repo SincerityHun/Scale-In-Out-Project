@@ -184,7 +184,7 @@ def train(state):
                     "batch_size_per_gpu": args.batch_size,
                     "iteration_time": iteration_time
                 })
-                async_log_record(logs, "sincerityhun_pytorch_mnist_elastic_logs.json")
+                async_log_record(logs, "./logs/sincerityhun_pytorch_mnist_elastic_logs.json")
                 logs = [] 
 
             state.commit()
